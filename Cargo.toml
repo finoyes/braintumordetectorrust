@@ -9,3 +9,5 @@ burn-ndarray = "0.16"
 image = "0.25"
 rand = "0.8"
 serde = { version = "1", features = ["derive"] }
+eframe = { version = "0.29", features = ["default"] }
+rfd = "0.15"

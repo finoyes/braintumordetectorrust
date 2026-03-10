@@ -8,9 +8,10 @@ use crate::data::{
 };
 use crate::model::BrainTumorCNN;
 
-type MyBackend = burn::backend::ndarray::NdArray<f32>;
+pub type InferBackend = burn::backend::ndarray::NdArray<f32>;
+type MyBackend = InferBackend;
 
-fn load_model() -> BrainTumorCNN<MyBackend> {
+pub fn load_model() -> BrainTumorCNN<MyBackend> {
     let device = Default::default();
     let model: BrainTumorCNN<MyBackend> = BrainTumorCNN::new(&device);
     let recorder = NamedMpkFileRecorder::<FullPrecisionSettings>::new();
@@ -101,26 +102,42 @@ pub fn run_evaluation() {
 
 pub fn predict_single(image_path: &str) {
     let model = load_model();
+    let (label, prob_no, prob_yes) = predict_with_model(image_path, &model);
+    println!("\n--- Prediction ---");
+    println!("Image: {}", image_path);
+    println!("Result: {}", label);
+    println!("Confidence: No Tumor: {:.1}% | Tumor: {:.1}%", prob_no * 100.0, prob_yes * 100.0);
+}
+
+/// Load model without panicking — returns Err if the model file is missing.
+pub fn try_load_model() -> Result<BrainTumorCNN<MyBackend>, String> {
+    if !std::path::Path::new("brain_tumor_model.mpk").exists() {
+        return Err("brain_tumor_model.mpk not found.\nRun:  cargo run --release -- train".to_string());
+    }
+    Ok(load_model())
+}
+
+/// Run inference on a single image using an already-loaded model.
+/// Returns (label, prob_no_tumor, prob_tumor).
+pub fn predict_with_model(image_path: &str, model: &BrainTumorCNN<MyBackend>) -> (String, f32, f32) {
     let device: <MyBackend as Backend>::Device = Default::default();
     let path = std::path::Path::new(image_path);
 
-    let pixels = load_image(path).expect("Failed to load image");
+    let pixels = match load_image(path) {
+        Some(p) => p,
+        None => return ("ERROR: Could not load image".to_string(), 0.0, 0.0),
+    };
+
     let tensor = Tensor::<MyBackend, 1>::from_floats(pixels.as_slice(), &device)
         .reshape([1, NUM_CHANNELS, IMG_SIZE, IMG_SIZE]);
 
     let logits = model.forward(tensor);
-
-    // Apply softmax to get probabilities
     let probs = burn::tensor::activation::softmax(logits, 1);
     let pred = probs.clone().argmax(1).squeeze::<1>(1).into_scalar();
 
     let prob_no: f32 = probs.clone().slice([0..1, 0..1]).into_scalar();
     let prob_yes: f32 = probs.slice([0..1, 1..2]).into_scalar();
 
-    let label = if pred == 1 { "TUMOR DETECTED" } else { "NO TUMOR" };
-
-    println!("\n--- Prediction ---");
-    println!("Image: {}", image_path);
-    println!("Result: {}", label);
-    println!("Confidence: No Tumor: {:.1}% | Tumor: {:.1}%", prob_no * 100.0, prob_yes * 100.0);
+    let label = if pred == 1 { "TUMOR DETECTED".to_string() } else { "NO TUMOR".to_string() };
+    (label, prob_no, prob_yes)
 }

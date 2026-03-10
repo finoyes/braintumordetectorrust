@@ -91,15 +91,57 @@ pub fn load_image(path: &Path) -> Option<Vec<f32>> {
     Some(pixels)
 }
 
+/// Same as `load_image` but applies random horizontal flip and brightness jitter for training.
+pub fn load_image_augmented(path: &Path) -> Option<Vec<f32>> {
+    use rand::Rng;
+    let img = image::open(path).ok()?;
+    let img = img.resize_exact(
+        IMG_SIZE as u32,
+        IMG_SIZE as u32,
+        image::imageops::FilterType::Triangle,
+    );
+
+    let mut rng = rand::thread_rng();
+
+    // Random horizontal flip (50%)
+    let img = if rng.gen_bool(0.5) {
+        image::DynamicImage::from(image::imageops::flip_horizontal(&img))
+    } else {
+        img
+    };
+
+    // Slight brightness variation (±15%)
+    let brightness: f32 = rng.gen_range(0.85..1.15);
+
+    let mut pixels = vec![0.0f32; NUM_CHANNELS * IMG_SIZE * IMG_SIZE];
+    for (x, y, pixel) in img.pixels() {
+        let idx_base = (y as usize) * IMG_SIZE + (x as usize);
+        pixels[0 * IMG_SIZE * IMG_SIZE + idx_base] = (pixel[0] as f32 / 255.0 * brightness).clamp(0.0, 1.0);
+        pixels[1 * IMG_SIZE * IMG_SIZE + idx_base] = (pixel[1] as f32 / 255.0 * brightness).clamp(0.0, 1.0);
+        pixels[2 * IMG_SIZE * IMG_SIZE + idx_base] = (pixel[2] as f32 / 255.0 * brightness).clamp(0.0, 1.0);
+    }
+
+    Some(pixels)
+}
+
 #[derive(Clone, Debug)]
 pub struct BrainTumorBatcher<B: Backend> {
     _backend: std::marker::PhantomData<B>,
+    pub augment: bool,
 }
 
 impl<B: Backend> BrainTumorBatcher<B> {
     pub fn new() -> Self {
         Self {
             _backend: std::marker::PhantomData,
+            augment: false,
+        }
+    }
+
+    pub fn new_augmented() -> Self {
+        Self {
+            _backend: std::marker::PhantomData,
+            augment: true,
         }
     }
 }
@@ -118,7 +160,12 @@ impl<B: Backend> Batcher<BrainTumorItem, BrainTumorBatch<B>> for BrainTumorBatch
         let mut all_labels = Vec::with_capacity(batch_size);
 
         for item in &items {
-            match load_image(&item.image_path) {
+            let pixels = if self.augment {
+                load_image_augmented(&item.image_path)
+            } else {
+                load_image(&item.image_path)
+            };
+            match pixels {
                 Some(pixels) => {
                     let tensor = Tensor::<B, 1>::from_floats(
                         pixels.as_slice(),

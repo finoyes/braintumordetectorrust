@@ -2,7 +2,7 @@ use burn::prelude::*;
 use burn::backend::Autodiff;
 use burn::module::AutodiffModule;
 use burn::nn::loss::CrossEntropyLossConfig;
-use burn::optim::{SgdConfig, momentum::MomentumConfig, GradientsParams, Optimizer};
+use burn::optim::{SgdConfig, momentum::MomentumConfig, decay::WeightDecayConfig, GradientsParams, Optimizer};
 use burn::record::{FullPrecisionSettings, NamedMpkFileRecorder};
 use rand::seq::SliceRandom;
 
@@ -25,11 +25,20 @@ pub fn run_training() {
     let dataset = BrainTumorDataset::from_directory("train");
     println!("Training samples: {}", dataset.len());
 
+    // Compute class weights to counteract imbalance (more tumor than no-tumor images)
+    let no_count = dataset.items.iter().filter(|i| i.label == 0).count();
+    let yes_count = dataset.items.iter().filter(|i| i.label == 1).count();
+    let total_f = dataset.len() as f64;
+    let weight_no  = total_f / (2.0 * no_count  as f64);
+    let weight_yes = total_f / (2.0 * yes_count as f64);
+    println!("Class counts — no: {no_count}, yes: {yes_count}  |  weights — no: {weight_no:.3}, yes: {weight_yes:.3}");
+
     // Initialize model
     let mut model: BrainTumorCNN<TrainBackend> = BrainTumorCNN::new(&device);
 
     // Optimizer - SGD with momentum
     let optimizer_config = SgdConfig::new()
+        .with_weight_decay(Some(WeightDecayConfig::new(1e-4)))
         .with_momentum(Some(MomentumConfig {
             momentum: 0.9,
             dampening: 0.0,
@@ -37,8 +46,10 @@ pub fn run_training() {
         }));
     let mut optim = optimizer_config.init::<TrainBackend, BrainTumorCNN<TrainBackend>>();
 
-    let batcher = BrainTumorBatcher::<TrainBackend>::new();
-    let loss_fn = CrossEntropyLossConfig::new().init(&device);
+    let batcher = BrainTumorBatcher::<TrainBackend>::new_augmented();
+    let loss_fn = CrossEntropyLossConfig::new()
+        .with_weights(Some(vec![weight_no as f32, weight_yes as f32]))
+        .init(&device);
 
     println!("\n--- Starting Training ---");
     println!("Epochs: {}, Batch Size: {}, LR: {}", EPOCHS, BATCH_SIZE, LEARNING_RATE);
