@@ -16,8 +16,9 @@ fn main() {
             let path = args.get(2).expect("Usage: brain_tumor_cnn predict <image_path>");
             infer::predict_single(path);
         }
-        // Launch GUI when no subcommand or explicitly "gui"
-        Some("gui") | None => gui::run_gui(),
+        Some("gui") => gui::run_gui(),
+        // Default to web server so headless deployments (Render, Railway) work without arguments
+        None => server::run_server(),
         _ => {
             println!("Brain Tumor Detection CNN (Rust + Burn)");
             println!("Usage:");
