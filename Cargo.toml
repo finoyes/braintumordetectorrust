@@ -1,0 +1,11 @@
+[package]
+name = "brain_tumor_cnn"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+burn = { version = "0.16", features = ["train", "ndarray", "vision", "autodiff"] }
+burn-ndarray = "0.16"
+image = "0.25"
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
