@@ -3,13 +3,15 @@ mod model;
 mod train;
 mod infer;
 mod gui;
+mod server;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     match args.get(1).map(|s| s.as_str()) {
         Some("train") => train::run_training(),
-        Some("test") => infer::run_evaluation(),
+        Some("test")  => infer::run_evaluation(),
+        Some("serve") => server::run_server(),
         Some("predict") => {
             let path = args.get(2).expect("Usage: brain_tumor_cnn predict <image_path>");
             infer::predict_single(path);
@@ -24,6 +26,7 @@ fn main() {
             println!("  brain_tumor_cnn train         - Train the model");
             println!("  brain_tumor_cnn test          - Evaluate on test set");
             println!("  brain_tumor_cnn predict <img> - Predict single image");
+            println!("  brain_tumor_cnn serve         - Start web server (default port 3000)");
         }
     }
 }

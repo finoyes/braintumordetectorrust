@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brain Tumor Detector</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 40px;
+    }
+
+    .header { text-align: center; margin-bottom: 40px; }
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .header p { color: #94a3b8; font-size: 0.9rem; }
+
+    .card {
+      background: #1e293b;
+      border-radius: 20px;
+      padding: 32px;
+      width: 100%;
+      max-width: 580px;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+    }
+
+    /* Upload zone */
+    .upload-zone {
+      border: 2px dashed #334155;
+      border-radius: 14px;
+      padding: 52px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: #60a5fa;
+      background: rgba(96,165,250,0.05);
+    }
+    .upload-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0;
+      cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-icon { font-size: 44px; margin-bottom: 16px; }
+    .upload-zone h3 { font-size: 1rem; color: #cbd5e1; margin-bottom: 6px; }
+    .upload-zone p  { font-size: 0.8rem; color: #64748b; }
+
+    /* Preview */
+    .preview-section { display: none; margin-top: 24px; }
+    .preview-section.visible { display: block; }
+    .preview-image {
+      width: 100%; border-radius: 10px;
+      max-height: 320px; object-fit: contain;
+      background: #0f172a;
+    }
+
+    /* Analyze button */
+    .analyze-btn {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      border: none; border-radius: 10px;
+      color: #fff; font-size: 1rem; font-weight: 700;
+      cursor: pointer; margin-top: 16px;
+      transition: opacity 0.2s, transform 0.1s;
+      letter-spacing: 0.3px;
+    }
+    .analyze-btn:hover  { opacity: 0.9; }
+    .analyze-btn:active { transform: scale(0.99); }
+    .analyze-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Spinner */
+    .spinner { display: none; text-align: center; padding: 24px 0; color: #94a3b8; }
+    .spinner.visible { display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .spin-ring {
+      width: 26px; height: 26px; flex-shrink: 0;
+      border: 3px solid #334155; border-top-color: #60a5fa;
+      border-radius: 50%; animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Result */
+    .result-section { display: none; margin-top: 24px; }
+    .result-section.visible { display: block; }
+
+    .result-badge {
+      text-align: center; padding: 22px 16px;
+      border-radius: 12px; margin-bottom: 22px;
+    }
+    .result-badge.tumor    { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); }
+    .result-badge.no-tumor { background: rgba(34,197,94,0.12);  border: 1px solid rgba(34,197,94,0.3); }
+    .result-icon { font-size: 36px; margin-bottom: 8px; }
+    .result-label { font-size: 1.45rem; font-weight: 800; letter-spacing: 0.5px; }
+    .tumor    .result-label { color: #f87171; }
+    .no-tumor .result-label { color: #4ade80; }
+
+    .confidence-section h4 {
+      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1px; color: #475569; margin-bottom: 14px;
+    }
+    .confidence-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .confidence-row label { width: 90px; font-size: 0.82rem; color: #94a3b8; flex-shrink: 0; }
+    .bar-track { flex: 1; height: 9px; background: #334155; border-radius: 5px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 5px; width: 0%; transition: width 0.7s cubic-bezier(.22,.68,0,1.2); }
+    .bar-fill.green { background: linear-gradient(90deg, #22c55e, #4ade80); }
+    .bar-fill.red   { background: linear-gradient(90deg, #ef4444, #f87171); }
+    .conf-pct { width: 40px; text-align: right; font-size: 0.82rem; font-weight: 700; color: #cbd5e1; }
+
+    /* Error */
+    .error-msg {
+      display: none; margin-top: 16px; padding: 12px 16px;
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px; color: #fca5a5; font-size: 0.84rem;
+    }
+    .error-msg.visible { display: block; }
+
+    .footer {
+      margin-top: 36px; color: #475569;
+      font-size: 0.73rem; text-align: center; line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🧠 Brain Tumor Detector</h1>
+    <p>Upload an MRI scan — the CNN model will analyze it instantly</p>
+  </div>
+
+  <div class="card">
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept="image/*" />
+      <div class="upload-icon">🖼️</div>
+      <h3>Drag &amp; drop an MRI image here</h3>
+      <p>or click to browse &mdash; JPG, PNG, BMP supported</p>
+    </div>
+
+    <div class="preview-section" id="previewSection">
+      <img class="preview-image" id="previewImage" src="" alt="MRI Preview" />
+      <button class="analyze-btn" id="analyzeBtn" onclick="analyze()">🔍 Analyze Image</button>
+    </div>
+
+    <div class="spinner" id="spinner">
+      <div class="spin-ring"></div>
+      <span>Analyzing image&hellip;</span>
+    </div>
+
+    <div class="result-section" id="resultSection">
+      <div class="result-badge" id="resultBadge">
+        <div class="result-icon" id="resultIcon"></div>
+        <div class="result-label" id="resultLabel"></div>
+      </div>
+      <div class="confidence-section">
+        <h4>Confidence</h4>
+        <div class="confidence-row">
+          <label>No Tumor</label>
+          <div class="bar-track"><div class="bar-fill green" id="barNo"></div></div>
+          <span class="conf-pct" id="pctNo">0%</span>
+        </div>
+        <div class="confidence-row">
+          <label>Tumor</label>
+          <div class="bar-track"><div class="bar-fill red" id="barYes"></div></div>
+          <span class="conf-pct" id="pctYes">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <div class="footer">
+    For research &amp; educational purposes only.<br>Not a certified medical diagnostic tool.
+  </div>
+
+  <script>
+    let selectedFile = null;
+
+    const fileInput     = document.getElementById('fileInput');
+    const uploadZone    = document.getElementById('uploadZone');
+    const previewSection= document.getElementById('previewSection');
+    const previewImage  = document.getElementById('previewImage');
+    const analyzeBtn    = document.getElementById('analyzeBtn');
+    const spinner       = document.getElementById('spinner');
+    const resultSection = document.getElementById('resultSection');
+    const resultBadge   = document.getElementById('resultBadge');
+    const resultIcon    = document.getElementById('resultIcon');
+    const resultLabel   = document.getElementById('resultLabel');
+    const errorMsg      = document.getElementById('errorMsg');
+
+    fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+    uploadZone.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadZone.classList.remove('drag-over');
+      handleFile(e.dataTransfer.files[0]);
+    });
+
+    function handleFile(file) {
+      if (!file) return;
+      selectedFile = file;
+      previewImage.src = URL.createObjectURL(file);
+      previewSection.classList.add('visible');
+      resultSection.classList.remove('visible');
+      errorMsg.classList.remove('visible');
+    }
+
+    async function analyze() {
+      if (!selectedFile) return;
+      analyzeBtn.disabled = true;
+      spinner.classList.add('visible');
+      resultSection.classList.remove('visible');
+      errorMsg.classList.remove('visible');
+
+      const formData = new FormData();
+      formData.append('image', selectedFile);
+
+      try {
+        const res = await fetch('/predict', { method: 'POST', body: formData });
+        if (!res.ok) { throw new Error(await res.text()); }
+        showResult(await res.json());
+      } catch (err) {
+        errorMsg.textContent = 'Error: ' + err.message;
+        errorMsg.classList.add('visible');
+      } finally {
+        analyzeBtn.disabled = false;
+        spinner.classList.remove('visible');
+      }
+    }
+
+    function showResult(data) {
+      resultBadge.className = 'result-badge ' + (data.is_tumor ? 'tumor' : 'no-tumor');
+      resultIcon.textContent  = data.is_tumor ? '⚠️' : '✅';
+      resultLabel.textContent = data.label;
+
+      const no  = Math.round(data.prob_no  * 100);
+      const yes = Math.round(data.prob_yes * 100);
+
+      document.getElementById('barNo').style.width  = no  + '%';
+      document.getElementById('pctNo').textContent  = no  + '%';
+      document.getElementById('barYes').style.width = yes + '%';
+      document.getElementById('pctYes').textContent = yes + '%';
+
+      resultSection.classList.add('visible');
+    }
+  </script>
+</body>
+</html>
