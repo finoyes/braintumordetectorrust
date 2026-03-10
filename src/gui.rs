@@ -57,7 +57,7 @@ impl eframe::App for BrainTumorApp {
 
             ui.add_space(8.0);
 
-            // Select image button
+            //  image button
             if ui
                 .add_sized(
                     [200.0, 36.0],
