@@ -69,7 +69,7 @@ async fn predict_handler(
     State(state): State<Arc<AppState>>,
     mut multipart: Multipart,
 ) -> Result<Json<PredictResponse>, (StatusCode, String)> {
-    // Read uploaded image bytes
+    
     let mut image_bytes = None;
     while let Some(field) = multipart
         .next_field()
@@ -90,7 +90,7 @@ async fn predict_handler(
     let bytes = image_bytes
         .ok_or_else(|| (StatusCode::BAD_REQUEST, "No 'image' field in form data".to_string()))?;
 
-    // Write to a unique temp file
+   
     let temp_path = std::env::temp_dir().join(format!(
         "brain_mri_{}.jpg",
         std::time::SystemTime::now()
@@ -104,7 +104,7 @@ async fn predict_handler(
 
     let path_str = temp_path.to_string_lossy().to_string();
 
-    // Run inference on a blocking thread so the async executor isn't starved
+    
     let (label, prob_no, prob_yes) = tokio::task::spawn_blocking(move || {
         let model = state.model.lock().unwrap();
         predict_with_model(&path_str, &model)
