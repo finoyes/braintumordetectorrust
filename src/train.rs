@@ -21,11 +21,11 @@ type TrainBackend = Autodiff<InnerBackend>;
 pub fn run_training() {
     let device = Default::default();
 
-    // Load dataset
+
     let dataset = BrainTumorDataset::from_directory("train");
     println!("Training samples: {}", dataset.len());
 
-    // Compute class weights to counteract imbalance (more tumor than no-tumor images)
+    
     let no_count = dataset.items.iter().filter(|i| i.label == 0).count();
     let yes_count = dataset.items.iter().filter(|i| i.label == 1).count();
     let total_f = dataset.len() as f64;
@@ -33,10 +33,8 @@ pub fn run_training() {
     let weight_yes = total_f / (2.0 * yes_count as f64);
     println!("Class counts — no: {no_count}, yes: {yes_count}  |  weights — no: {weight_no:.3}, yes: {weight_yes:.3}");
 
-    // Initialize model
     let mut model: BrainTumorCNN<TrainBackend> = BrainTumorCNN::new(&device);
 
-    // Optimizer - SGD with momentum
     let optimizer_config = SgdConfig::new()
         .with_weight_decay(Some(WeightDecayConfig::new(1e-4)))
         .with_momentum(Some(MomentumConfig {
@@ -59,7 +57,7 @@ pub fn run_training() {
         let mut correct = 0usize;
         let mut total = 0usize;
 
-        // Shuffle items each epoch
+        
         let mut items = dataset.items.clone();
         let mut rng = rand::thread_rng();
         items.shuffle(&mut rng);
@@ -74,11 +72,11 @@ pub fn run_training() {
 
             let batch: BrainTumorBatch<TrainBackend> = batcher.batch(batch_items);
 
-            // Forward pass
+            
             let logits = model.forward(batch.images);
             let loss = loss_fn.forward(logits.clone(), batch.labels.clone());
 
-            // Compute accuracy (use inner tensors for comparison)
+            
             let predictions = logits.clone().argmax(1).squeeze::<1>(1);
             let correct_batch: usize = predictions
                 .equal(batch.labels)
@@ -88,11 +86,11 @@ pub fn run_training() {
             correct += correct_batch;
             total += batch_len;
 
-            // Get loss value for logging
+            
             let loss_val: f32 = loss.clone().into_scalar().elem();
             epoch_loss += loss_val;
 
-            // Backward pass + update
+            
             let grads = loss.backward();
             let grad_container = GradientsParams::from_grads(grads, &model);
             model = optim.step(LEARNING_RATE, model, grad_container);
@@ -111,7 +109,7 @@ pub fn run_training() {
         );
     }
 
-    // Save the trained model — convert to inner backend for inference compatibility
+    
     let model_valid = model.valid();
     let recorder = NamedMpkFileRecorder::<FullPrecisionSettings>::new();
     model_valid
