@@ -37,7 +37,7 @@ impl BrainTumorDataset {
             }
         }
 
-        // Load "yes" images (label = 1)
+       
         let yes_dir = Path::new(base_dir).join("yes");
         if yes_dir.exists() {
             if let Ok(entries) = std::fs::read_dir(&yes_dir) {
@@ -69,7 +69,7 @@ fn is_image_file(path: &Path) -> bool {
     }
 }
 
-/// Load and preprocess a single image into a [C, H, W] float array
+
 pub fn load_image(path: &Path) -> Option<Vec<f32>> {
     let img = image::open(path).ok()?;
     let img = img.resize_exact(
@@ -82,7 +82,7 @@ pub fn load_image(path: &Path) -> Option<Vec<f32>> {
 
     for (x, y, pixel) in img.pixels() {
         let idx_base = (y as usize) * IMG_SIZE + (x as usize);
-        // Normalize to [0, 1]
+        
         pixels[0 * IMG_SIZE * IMG_SIZE + idx_base] = pixel[0] as f32 / 255.0; // R
         pixels[1 * IMG_SIZE * IMG_SIZE + idx_base] = pixel[1] as f32 / 255.0; // G
         pixels[2 * IMG_SIZE * IMG_SIZE + idx_base] = pixel[2] as f32 / 255.0; // B
@@ -91,7 +91,7 @@ pub fn load_image(path: &Path) -> Option<Vec<f32>> {
     Some(pixels)
 }
 
-/// Same as `load_image` but applies random horizontal flip and brightness jitter for training.
+
 pub fn load_image_augmented(path: &Path) -> Option<Vec<f32>> {
     use rand::Rng;
     let img = image::open(path).ok()?;
@@ -103,14 +103,14 @@ pub fn load_image_augmented(path: &Path) -> Option<Vec<f32>> {
 
     let mut rng = rand::thread_rng();
 
-    // Random horizontal flip (50%)
+    
     let img = if rng.gen_bool(0.5) {
         image::DynamicImage::from(image::imageops::flip_horizontal(&img))
     } else {
         img
     };
 
-    // Slight brightness variation (±15%)
+    
     let brightness: f32 = rng.gen_range(0.85..1.15);
 
     let mut pixels = vec![0.0f32; NUM_CHANNELS * IMG_SIZE * IMG_SIZE];
@@ -148,8 +148,8 @@ impl<B: Backend> BrainTumorBatcher<B> {
 
 #[derive(Clone, Debug)]
 pub struct BrainTumorBatch<B: Backend> {
-    pub images: Tensor<B, 4>,  // [batch, channels, height, width]
-    pub labels: Tensor<B, 1, Int>, // [batch]
+    pub images: Tensor<B, 4>,  
+    pub labels: Tensor<B, 1, Int>, 
 }
 
 impl<B: Backend> Batcher<BrainTumorItem, BrainTumorBatch<B>> for BrainTumorBatcher<B> {
