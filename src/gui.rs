@@ -46,22 +46,22 @@ impl eframe::App for BrainTumorApp {
                 Err(e) => {
                     ui.colored_label(
                         egui::Color32::from_rgb(220, 60, 60),
-                        format!("⚠  {}", e),
+                        format!("[ERROR] {}", e),
                     );
                     return;
                 }
                 Ok(_) => {
-                    ui.colored_label(egui::Color32::from_rgb(60, 180, 60), "● Model ready");
+                    ui.colored_label(egui::Color32::from_rgb(60, 180, 60), "[READY] Model loaded");
                 }
             }
 
             ui.add_space(8.0);
 
-            //  image button
+            // Select image button
             if ui
                 .add_sized(
                     [200.0, 36.0],
-                    egui::Button::new("📂  Select Brain MRI Image"),
+                    egui::Button::new("Select Brain MRI Image"),
                 )
                 .clicked()
             {
@@ -130,16 +130,17 @@ impl eframe::App for BrainTumorApp {
                     ui.add_space(8.0);
 
                     if self.has_result {
-                        let (color, icon) = if self.result_label.contains("TUMOR") {
-                            (egui::Color32::from_rgb(220, 60, 60), "🔴")
+                        let is_tumor = self.result_label == "TUMOR DETECTED";
+                        let color = if is_tumor {
+                            egui::Color32::from_rgb(230, 70, 70)
                         } else {
-                            (egui::Color32::from_rgb(60, 180, 60), "🟢")
+                            egui::Color32::from_rgb(50, 200, 100)
                         };
 
                         ui.add_space(8.0);
                         ui.colored_label(
                             color,
-                            egui::RichText::new(format!("{} {}", icon, self.result_label))
+                            egui::RichText::new(&self.result_label)
                                 .size(20.0)
                                 .strong(),
                         );
