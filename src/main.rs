@@ -16,7 +16,10 @@ fn main() {
             let path = args.get(2).expect("Usage: brain_tumor_cnn predict <image_path>");
             infer::predict_single(path);
         }
-        Some("gui") => gui::run_gui(),
+        Some("gui") => {
+            let initial_img = args.get(2).cloned().or_else(|| std::env::var("BRAIN_TUMOR_IMAGE").ok());
+            gui::run_gui(initial_img);
+        }
         // Default to web server so headless deployments (Render, Railway) work without arguments
         None => server::run_server(),
         _ => {
